@@ -1,11 +1,38 @@
 #!/bin/bash
-  
-source /sdf/group/ml/CryoNet/jshenoy/conda/etc/profile.d/conda.sh
-conda activate /sdf/group/ml/CryoNet/jshenoy/conda/envs/cmtip
+
+#SBATCH --job-name=cmtip
+#SBATCH --output=logs/%j.log
+#SBATCH --error=logs/%j.err
+
+#SBATCH --time=01:00:00
+#SBATCH --partition=ml
+#SBATCH --ntasks=8
+#SBATCH --mem=1G
+
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+  key="$1"
+
+  case $key in
+    -d|--datadir)
+      DATADIRPATH="$2"
+      shift
+      shift
+      ;;
+    *)
+      POSITIONAL+=("$1")
+      shift
+      ;;
+  esac
+done
+
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+echo "Dataset directory:"
+echo ${DATADIRPATH}
 
 work_dir=${PWD}
-input_dir=/sdf/group/ml/CryoNet/jshenoy/skopi_datasets
-reconst_top_dir=${work_dir}/outputs/${SLURM_JOB_ID}
+reconst_top_dir=${DATADIRPATH}/mtip_${SLURM_JOB_ID}
 mkdir -p ${reconst_top_dir}
 
 cd ${reconst_top_dir}
@@ -30,10 +57,7 @@ module load mpi/mpich-x86_64
 source /sdf/group/ml/CryoNet/jshenoy/conda/etc/profile.d/conda.sh
 conda activate /sdf/group/ml/CryoNet/jshenoy/conda/envs/cmtip
 
-# python ${work_dir}/cmtip/reconstruct.py -i ${input_dir}/2cexa_sim_64_dist_01_50k_scaled.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum}
-# python ${work_dir}/cmtip/reconstruct.py -i ${input_dir}/1o9k_sim_64_dist_02_50k_scaled.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum}
-# python ${work_dir}/cmtip/reconstruct.py -i ${input_dir}/1o9k_sim_64_dist_02_50k.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum}
-python ${work_dir}/cmtip/reconstruct.py -i ${input_dir}/1o9k_sim_64_dist_02_50k_scaled_10.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum}
+python ${work_dir}/cmtip/reconstruct.py -i ${DATADIRPATH}/data_train.h5 --test_set_file ${DATADIRPATH}/data_test.h5 -b 2 -m 64 -n 10 -o rec_${vnum}
 
 EOF
 

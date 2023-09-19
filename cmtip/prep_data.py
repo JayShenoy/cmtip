@@ -37,6 +37,9 @@ def load_h5(input_file, start=0, end=None, load_ivol=False):
 
         # otherwise get this info from the dataset keys
         for key in list(f.keys()):
+            if key == 'img_paths':
+                attrs['n_images'] = f[key].shape[0]
+
             if key == 'intensities' or key == 'photons':
                 attrs['n_images'] = f[key].shape[0]
                 attrs['det_shape'] = f[key].shape[1:]
@@ -51,7 +54,7 @@ def load_h5(input_file, start=0, end=None, load_ivol=False):
     attrs['n_images'] = end - start
     
     # set up empty arrays to be populated with data with single precision
-    data['intensities'] = np.zeros((attrs['n_images'],) + attrs['det_shape']).astype(np.float32)
+    # data['intensities'] = np.zeros((attrs['n_images'],) + attrs['det_shape']).astype(np.float32)
     data['pixel_position_reciprocal'] = np.zeros((3,) + attrs['det_shape']).astype(np.float32)
     data['pixel_index_map'] = np.zeros(attrs['det_shape'] + (2,)).astype(int)
     if 'orientations' in dsets:
@@ -63,6 +66,9 @@ def load_h5(input_file, start=0, end=None, load_ivol=False):
 
     # retrieve data arrays
     with h5py.File(input_file, 'r') as f:
+        if 'img_paths' in f.keys():
+            data['img_paths'] = f['img_paths'][start:end].tolist()
+
         for key in ['pixel_position_reciprocal', 'pixel_index_map']:
             try:
                 data[key][:] = f[key][:]
@@ -73,7 +79,8 @@ def load_h5(input_file, start=0, end=None, load_ivol=False):
             data['volume'][:] = f[key][:]
         for key in dsets:
             if key == 'photons' or key == 'intensities':
-                data['intensities'][:] = f[key][start:end]
+                pass
+                # data['intensities'][:] = f[key][start:end]
             else:
                 try:
                     data[key][:] = f[key][start:end]
@@ -81,8 +88,14 @@ def load_h5(input_file, start=0, end=None, load_ivol=False):
                     print(f"Detected a spinifel-style dataset, flattening one dimension of {key}")
                     data[key][:] = f[key][start:end].reshape(data[key].shape[0], data[key].shape[-1])
 
+    # Load diffraction images
+    print('Loading diffraction images')
+    intensities = [np.load(img_path) for img_path in data['img_paths']]
+    data['intensities'] = np.stack(intensities)
+    print(data['intensities'].shape)
+    
     # flatten each image and corresponding positions in reciprocal space
-    data['intensities'] = data['intensities'].reshape(attrs['n_images'],1,attrs['n_pixels_per_image'])
+    data['intensities'] = data['intensities'].reshape(attrs['n_images'], 1, attrs['n_pixels_per_image'])
     data['pixel_position_reciprocal'] = data['pixel_position_reciprocal'].reshape(3,1,attrs['n_pixels_per_image'])
 
     # compute resolution of corner pixel and store attributes

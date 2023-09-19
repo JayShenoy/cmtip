@@ -2,6 +2,8 @@ import argparse, time, os
 import numpy as np
 import skopi as sk
 import h5py
+import configargparse
+import shutil
 
 """
 Simulate a simple SPI dataset on either a SimpleSquare or LCLSDetector. Either intensities 
@@ -25,6 +27,26 @@ def parse_input():
     parser.add_argument('-s', '--increase_factor', help='Scale factor by which to increase beam fluence', required=False, default=1, type=float)
     parser.add_argument('-o', '--output', help='Path to output directory', required=False, type=str)
 
+    return vars(parser.parse_args())
+
+
+def parse_config_file():
+    parser = configargparse.ArgumentParser()
+    parser.add_argument('-c', '--config', required=False, is_config_file=True,
+                        help='Path to config file.')
+    parser.add_argument('--dataset_name', type=str, default=None, required=True,
+                        help='An identifier for the dataset.')
+    parser.add_argument('--job_id', type=str, help='Job id in slurm.')
+    parser.add_argument('--beam_file', help='Beam file', required=True, type=str)
+    parser.add_argument('--pdb_file', help='Pdb file', required=True, type=str)
+    parser.add_argument('--det_info', help='Detector info. Either (n_pixels, length, distance) for SimpleSquare'+
+                        'or (det_type, geom_file, distance) for LCLSDetectors. det_type could be pnccd, for instance',
+                        required=True, nargs=3)
+    parser.add_argument('--num_particles', help='Number of particle per shot', default=1, type=int)
+    parser.add_argument('--n_images', help='Number of slices to compute', required=True, type=int)
+    parser.add_argument('--quantize', help='If true, compute photons rather than intensities', action='store_true')
+    parser.add_argument('--increase_factor', help='Scale factor by which to increase beam fluence', required=False, default=1, type=float)
+    parser.add_argument('--output', help='Path to output directory', required=False, type=str)
     return vars(parser.parse_args())
 
 
@@ -67,6 +89,11 @@ def setup_experiment(args):
     return exp
 
 
+def cond_mkdir(path):
+    if not os.path.exists(path): # path does not exist, create it
+        os.makedirs(path)
+
+
 def simulate_writeh5(args):
     """
     Simulate diffraction images and save to h5 file.
@@ -83,7 +110,13 @@ def simulate_writeh5(args):
 
     # set up experiment and create h5py file
     exp = setup_experiment(args)
-    f = h5py.File(args["output"], "w")
+
+    dataset_id = '{}_{}'.format(args['dataset_name'], args['job_id'])
+    output_dir_path = os.path.join(args['output'], dataset_id)
+    cond_mkdir(output_dir_path)
+    output_dataset_fpath = os.path.join(output_dir_path, 'data_train.h5')
+
+    f = h5py.File(output_dataset_fpath, "w")
 
     # store useful experiment arrays
     f.create_dataset("pixel_position_reciprocal", data=np.moveaxis(exp.det.pixel_position_reciprocal, -1, 0)) # s-vectors in m-1 
@@ -111,6 +144,9 @@ def simulate_writeh5(args):
 
     print("Simulated dataset saved to %s" %args['output'])
     print("elapsed time is %.2f" %((time.time() - start_time)/60.0))
+
+    # Copy the config file to the output directory
+    shutil.copyfile(args['config'], os.path.join(output_dir_path, 'config'))
 
     return
 
@@ -167,7 +203,7 @@ def main():
     """
 
     # gather command line input 
-    args = parse_input()
+    args = parse_config_file()
 
     # simulate images and save
     if args['output'] is not None:

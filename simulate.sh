@@ -16,13 +16,26 @@ conda activate /sdf/group/ml/CryoNet/jshenoy/conda/envs/cmtip
 # only use CPU for this
 export USE_CUPY=0
 
-work_dir=${PWD}
-output_dir=/sdf/group/ml/CryoNet/jshenoy/skopi_datasets
+POSITIONAL=()
+while [[ $# -gt 0 ]]; do
+  key="$1"
 
-#python /sdf/home/a/apeck/exafel/milestone/simulate_beam_jitter.py -b /sdf/home/a/apeck/cmtip/examples/input/amo86615.beam -p /scratch/apeck/cmtip_dev3/pdbs/2cex_a.pdb -d pnccd /sdf/home/a/apeck/skopi/examples/input/lcls/amo86615/PNCCD::CalibV1/Camp.0:pnCCD.1/geometry/0-end.data 0.04 -n 100 -o 2cexa_sim.h5 -q -s 100 -bj 0.5
-#python cmtip/simulate.py -b ./examples/input/amo86615.beam -p ./examples/input/2cex_a.pdb -d 64 0.1 0.1 -n 5000 -s 10000000 -o ../skopi_datasets/2cexa_sim_64_dist_01_5k_scaled.h5
-# python ${code_dir}/cmtip/simulate.py -b ${work_dir}/amo86615/amo86615.beam -p ${work_dir}/2cex_a.pdb -d 64 0.1 0.1 -n 50000 -s 10000000 -o 2cexa_sim_64_dist_01_50k_scaled.h5
+  case $key in
+    -c|--config)
+      RELATVECONFIGPATH="$2"
+      shift
+      shift
+      ;;
+    *)
+      POSITIONAL+=("$1")
+      shift
+      ;;
+  esac
+done
 
-# python ${work_dir}/cmtip/simulate.py -b ${work_dir}/examples/input/amo86615.beam -p ${work_dir}/examples/input/2cex_a.pdb -d 64 0.1 0.1 -n 1000 -s 10000000 -o ${output_dir}/2cexa_sim_64_dist_01_1k_scaled.h5
-# python ${work_dir}/cmtip/simulate.py -b ${work_dir}/examples/input/amo86615.beam -p ${work_dir}/examples/input/1o9k.pdb -d 64 0.1 0.2 -n 50000 -o ${output_dir}/1o9k_sim_64_dist_02_50k.h5
-python ${work_dir}/cmtip/simulate.py -b ${work_dir}/examples/input/amo86615.beam -p ${work_dir}/examples/input/3iyf.pdb -d 64 0.1 0.5 -n 10000 -s 100000 -o ${output_dir}/3iyf_sim_64_dist_05_10k_scaled10.h5
+set -- "${POSITIONAL[@]}" # restore positional parameters
+
+echo "Relative path for config:"
+echo ${RELATVECONFIGPATH}
+
+python cmtip/simulate.py -c ${RELATVECONFIGPATH} --job_id ${SLURM_JOB_ID}

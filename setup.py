@@ -10,7 +10,8 @@ requirements = [
     'skopi',
     'finufft',
     'matplotlib',
-    'setuptools'
+    'setuptools',
+    'ConfigArgParse',
 ]
 
 setuptools.setup(

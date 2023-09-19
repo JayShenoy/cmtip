@@ -1,0 +1,7 @@
+dataset_name = 3iyf_64_len_01_dist_05_10k
+beam_file = /sdf/group/ml/CryoNet/jshenoy/cmtip/examples/input/amo86615.beam
+pdb_file = /sdf/group/ml/CryoNet/jshenoy/cmtip/examples/input/3iyf.pdb
+det_info = [64, 0.1, 0.5]
+n_images = 10000
+increase_factor = 100000
+output = /sdf/group/ml/CryoNet/jshenoy/skopi_datasets

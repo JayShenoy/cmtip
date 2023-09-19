@@ -2,6 +2,7 @@ import argparse, time, os
 import numpy as np
 import skopi as sk
 import h5py
+import json
 
 import cmtip.phasing as phaser
 from cmtip.autocorrelation import autocorrelation
@@ -14,6 +15,7 @@ def parse_input():
     """
     parser = argparse.ArgumentParser(description="Reconstruct an SPI dataset using the MTIP algorithm.")
     parser.add_argument('-i', '--input', help='Input h5 file containing intensities and exp information.')
+    parser.add_argument('--test_set_file', help='Input h5 file containing test set data.')
     parser.add_argument('-m', '--M', help='Cubic length of reconstruction volume', required=True, type=int)
     parser.add_argument('-o', '--output', help='Path to output directory', required=True, type=str)
     parser.add_argument('-n', '--niter', help='Number of MTIP iterations', required=False, type=int, default=10)
@@ -33,7 +35,7 @@ def run_mtip(data, M, output, aligned=True, n_iterations=10, use_gpu=False, chec
     :param data: dictionary containing images, pixel positions, orientations, etc.
     :param M: length of cubic autocorrelation volume
     :param output: path to output directory
-    :param aligned: if False use ground truth quaternions
+    :param aligned: if True use ground truth quaternions
     :param n_iterations: number of MTIP iterations to run, default=10
     :param use_gpu: boolean; if True, use cufinufft for NUFFT calculations
     :param checkpoint: dictionary containing intermediate results
@@ -93,7 +95,27 @@ def run_mtip(data, M, output, aligned=True, n_iterations=10, use_gpu=False, chec
         save_checkpoint(generation, output, checkpoint)
 
     print("elapsed time is %.2f" %((time.time() - start_time)/60.0))
-    return
+    return checkpoint
+
+
+def estimate_poses(data, ac_phased):
+    n_ref, res_limit = 5000, 9
+    
+    pixel_position_reciprocal = clip_data(data['pixel_position_reciprocal'],
+                                          data['pixel_position_reciprocal'],
+                                          res_limit)
+    intensities = clip_data(data['intensities'],
+                            data['pixel_position_reciprocal'], res_limit)
+    
+    return alignment.match_orientations(
+        0,
+        pixel_position_reciprocal,
+        data['reciprocal_extent'],
+        intensities,
+        ac_phased.astype(np.float32),
+        n_ref,
+        use_gpu=False
+    )
 
 
 def main():
@@ -102,6 +124,8 @@ def main():
     args = parse_input()
     if not os.path.isdir(args['output']):
         os.mkdir(args['output'])
+
+    tic = time.time()
 
     # load data and bin if requested
     if args['n_images'] is not None:
@@ -120,8 +144,22 @@ def main():
     checkpoint = load_checkpoint(args['checkpoint'])
 
     # reconstruct density from simulated diffraction images 
-    run_mtip(data, args['M'], args['output'], aligned=args['aligned'], 
-             n_iterations=args['niter'], use_gpu=args['use_gpu'], checkpoint=checkpoint)
+    checkpoint = run_mtip(data, args['M'], args['output'], aligned=args['aligned'], 
+        n_iterations=args['niter'], use_gpu=args['use_gpu'], checkpoint=checkpoint)
+    
+    toc = time.time()
+    
+    # Save reconstruction metadata
+    recon_stats = {
+        'reconstruction_time': toc - tic,
+    }
+    with open(os.path.join(args['output'], 'reconstruction_stats.txt'), 'w') as f:
+        json.dump(recon_stats, f)
+
+    # Evaluate pose estimation accuracy on test set
+    data_test = load_h5(args['test_set_file'])
+    est_poses_test = estimate_poses(data_test, checkpoint['ac_phased'])
+    np.save(os.path.join(args['output'], 'est_poses_test.npy'), est_poses_test)
 
 
 if __name__ == '__main__':
