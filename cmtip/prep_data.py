@@ -92,7 +92,6 @@ def load_h5(input_file, start=0, end=None, load_ivol=False):
     print('Loading diffraction images')
     intensities = [np.load(img_path) for img_path in data['img_paths']]
     data['intensities'] = np.stack(intensities)
-    print(data['intensities'].shape)
     
     # flatten each image and corresponding positions in reciprocal space
     data['intensities'] = data['intensities'].reshape(attrs['n_images'], 1, attrs['n_pixels_per_image'])

@@ -243,6 +243,9 @@ def solve_ac(generation,
     ac = ac.real
     it_number = callback.counter
 
+    # Compute solution error for AC recovery
+    ac_solution_error = np.linalg.norm(W @ ret - d)
+
     print(f"Recovered AC in {it_number} iterations.", flush=True)
 
-    return ac
+    return ac, ac_solution_error

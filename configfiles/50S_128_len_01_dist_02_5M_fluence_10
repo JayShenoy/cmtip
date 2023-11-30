@@ -1,0 +1,6 @@
+datadir = /sdf/group/ml/CryoNet/jshenoy/xrai_results/nature_comms/skopi/5O60_128_len_01_dist_02_train_5000000_test_10000_job_13881049
+M = 182
+niter = 10
+n_images = 50000
+n_ref = 10000
+bin_factor = 2

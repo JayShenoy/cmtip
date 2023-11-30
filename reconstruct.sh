@@ -19,6 +19,11 @@ while [[ $# -gt 0 ]]; do
       shift
       shift
       ;;
+    --n_images)
+      NUM_IMAGES="$2"
+      shift
+      shift
+      ;;
     *)
       POSITIONAL+=("$1")
       shift
@@ -32,7 +37,7 @@ echo "Dataset directory:"
 echo ${DATADIRPATH}
 
 work_dir=${PWD}
-reconst_top_dir=${DATADIRPATH}/mtip_${SLURM_JOB_ID}
+reconst_top_dir=${DATADIRPATH}/mtip/reconstruct_${NUM_IMAGES}_${SLURM_JOB_ID}
 mkdir -p ${reconst_top_dir}
 
 cd ${reconst_top_dir}
@@ -57,7 +62,7 @@ module load mpi/mpich-x86_64
 source /sdf/group/ml/CryoNet/jshenoy/conda/etc/profile.d/conda.sh
 conda activate /sdf/group/ml/CryoNet/jshenoy/conda/envs/cmtip
 
-python ${work_dir}/cmtip/reconstruct.py -i ${DATADIRPATH}/data_train.h5 --test_set_file ${DATADIRPATH}/data_test.h5 -b 2 -m 64 -n 10 -o rec_${vnum}
+python ${work_dir}/cmtip/reconstruct.py -i ${DATADIRPATH}/data_train.h5 --test_set_file ${DATADIRPATH}/data_test.h5 --n_images ${NUM_IMAGES} -b 2 -m 64 -n 10 -o rec_${vnum} --n_ref 10000
 
 EOF
 

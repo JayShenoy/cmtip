@@ -10,7 +10,7 @@ mkdir -p ${reconst_top_dir}
 
 cd ${reconst_top_dir}
 
-for vnum in `seq 0 9`
+for vnum in `seq 0 0`
 do
 
 cat >> temp_${vnum}.sh <<EOF
@@ -33,7 +33,9 @@ conda activate /sdf/group/ml/CryoNet/jshenoy/conda/envs/cmtip
 # python ${work_dir}/cmtip/reconstruct.py -i ${input_dir}/2cexa_sim_64_dist_01_50k_scaled.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum}
 # python ${work_dir}/cmtip/reconstruct.py -i ${input_dir}/1o9k_sim_64_dist_02_50k_scaled.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum}
 # python ${work_dir}/cmtip/reconstruct.py -i ${input_dir}/1o9k_sim_64_dist_02_50k.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum}
-python ${work_dir}/cmtip/reconstruct.py -i ${input_dir}/1o9k_sim_64_dist_02_50k_scaled_10.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum}
+# python ${work_dir}/cmtip/reconstruct.py -i ${input_dir}/1o9k_sim_64_dist_02_50k_scaled_10.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum}
+
+python ${work_dir}/cmtip/reconstruct_mpi.py -i ${input_dir}/1o9k_sim_64_dist_02_50k_scaled_10.h5 -t 50000 -b 2 -m 64 -n 10 -o rec_${vnum} -r 9 -ar 5000 -ab 50
 
 EOF
 

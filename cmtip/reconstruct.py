@@ -3,6 +3,7 @@ import numpy as np
 import skopi as sk
 import h5py
 import json
+import os
 
 import cmtip.phasing as phaser
 from cmtip.autocorrelation import autocorrelation
@@ -19,16 +20,17 @@ def parse_input():
     parser.add_argument('-m', '--M', help='Cubic length of reconstruction volume', required=True, type=int)
     parser.add_argument('-o', '--output', help='Path to output directory', required=True, type=str)
     parser.add_argument('-n', '--niter', help='Number of MTIP iterations', required=False, type=int, default=10)
-    parser.add_argument('-t', '--n_images', help='Total number of images to process', required=False, type=int)
+    parser.add_argument('-t', '--n_images', help='Total number of images to process', required=True, type=int)
     parser.add_argument('-b', '--bin_factor', help='Factor by which to bin data', required=False, type=int, default=1)
     parser.add_argument('-g', '--use_gpu', help='Use cufinufft for GPU-accelerated NUFFT calculations', action='store_true')
     parser.add_argument('-a', '--aligned', help='Alignment from reference quaternions', action='store_true')
     parser.add_argument('-cpt', '--checkpoint', help='Intermediate checkpoint file', required=False, type=str)
+    parser.add_argument('--n_ref', help='Number of reference orientations to use for alignment', required=False, type=int, default=5000)
 
     return vars(parser.parse_args())
 
 
-def run_mtip(data, M, output, aligned=True, n_iterations=10, use_gpu=False, checkpoint=load_checkpoint()):
+def run_mtip(data, M, output, aligned=True, n_iterations=10, use_gpu=False, checkpoint=load_checkpoint(), n_ref):
     """
     Run MTIP algorithm.
     
@@ -44,14 +46,14 @@ def run_mtip(data, M, output, aligned=True, n_iterations=10, use_gpu=False, chec
     start_time = time.time()
     
     # alignment parameters
-    n_ref, res_limit = 5000, 9
+    res_limit = 9
     if aligned:
         print("Using ground truth quaternions")
         checkpoint['orientations'] = data['orientations']
 
     # iteration 0: ac_estimate is unknown
     if checkpoint['generation'] == 0:
-        ac = autocorrelation.solve_ac(checkpoint['generation'],
+        ac, checkpoint['ac_solution_error'] = autocorrelation.solve_ac(checkpoint['generation'],
                                       data['pixel_position_reciprocal'],
                                       data['reciprocal_extent'],
                                       data['intensities'],
@@ -79,7 +81,7 @@ def run_mtip(data, M, output, aligned=True, n_iterations=10, use_gpu=False, chec
                                                                       n_ref,
                                                                       use_gpu=use_gpu)
         # solve for autocorrelation
-        checkpoint['ac'] = autocorrelation.solve_ac(generation,
+        checkpoint['ac'], checkpoint['ac_solution_error'] = autocorrelation.solve_ac(generation,
                                       data['pixel_position_reciprocal'],
                                       data['reciprocal_extent'],
                                       data['intensities'],
@@ -98,8 +100,8 @@ def run_mtip(data, M, output, aligned=True, n_iterations=10, use_gpu=False, chec
     return checkpoint
 
 
-def estimate_poses(data, ac_phased):
-    n_ref, res_limit = 5000, 9
+def estimate_poses(data, ac_phased, n_ref):
+    res_limit = 9
     
     pixel_position_reciprocal = clip_data(data['pixel_position_reciprocal'],
                                           data['pixel_position_reciprocal'],
@@ -145,7 +147,8 @@ def main():
 
     # reconstruct density from simulated diffraction images 
     checkpoint = run_mtip(data, args['M'], args['output'], aligned=args['aligned'], 
-        n_iterations=args['niter'], use_gpu=args['use_gpu'], checkpoint=checkpoint)
+        n_iterations=args['niter'], use_gpu=args['use_gpu'], checkpoint=checkpoint,
+        n_ref=args['n_ref'])
     
     toc = time.time()
     
@@ -158,7 +161,7 @@ def main():
 
     # Evaluate pose estimation accuracy on test set
     data_test = load_h5(args['test_set_file'])
-    est_poses_test = estimate_poses(data_test, checkpoint['ac_phased'])
+    est_poses_test = estimate_poses(data_test, checkpoint['ac_phased'], args['n_ref'])
     np.save(os.path.join(args['output'], 'est_poses_test.npy'), est_poses_test)
 
 
